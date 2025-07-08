@@ -2,24 +2,24 @@ import java.time.LocalDate;
 import java.util.*;
 
 interface ShippingService {
-    void ship(Book book, String address);
+    void dispatchTo(Book book, String address);
 }
 
 interface MailService {
-    void mail(Book book, String email);
+    void sendToMail(Book book, String email);
 }
 
 class ConsoleShippingService implements ShippingService {
     @Override
-    public void ship(Book book, String address) {
-        System.out.println("Quantum Book Store: Shipping '" + book.getTitle().toLowerCase() + "' to address: " + address);
+    public void dispatchTo(Book book, String address) {
+        System.out.println("Quantum Book Store: Shipping '" + book.retrieveTitle().toLowerCase() + "' to address: " + address);
     }
 }
 
 class ConsoleMailService implements MailService {
     @Override
-    public void mail(Book book, String email) {
-        System.out.println("Quantum Book Store: Sending '" + book.getTitle() + ".try' to email: " + email);
+    public void sendToMail(Book book, String email) {
+        System.out.println("Quantum Book Store: Sending '" + book.retrieveTitle() + ".try' to email: " + email);
     }
 }
 
@@ -46,23 +46,23 @@ abstract class Book {
         this.author = author;
     }
 
-    public String getISBN() { return isbn; }
-    public String getTitle() { return title; }
-    public int getYear() { return year; }
-    public double getPrice() { return price; }
-    public int getQuantity() { return quantity; }
+    public String retrieveISBN() { return isbn; }
+    public String retrieveTitle() { return title; }
+    public int getPublicationYear() { return year; }
+    public double getCost() { return price; }
+    public int availableStock() { return quantity; }
 
-    public void reduceStock(int qty) {
+    public void decreaseStock(int qty) {
         if (qty > quantity)
             throw new IllegalArgumentException("Warning! : Not enough quantity in stock");
         quantity -= qty;
     }
 
-    public boolean isOutdated(int maxAge, int currentYear) {
+    public boolean checkIfOutdated(int maxAge, int currentYear) {
         return (currentYear - year) > maxAge;
     }
 
-    public abstract void deliver(String email, String address);
+    public abstract void fulfillDelivery(String email, String address);
 }
 
 class PaperBook extends Book {
@@ -74,8 +74,8 @@ class PaperBook extends Book {
     }
 
     @Override
-    public void deliver(String email, String address) {
-        shippingService.ship(this, address);
+    public void fulfillDelivery(String email, String address) {
+        shippingService.dispatchTo(this, address);
     }
 }
 
@@ -88,8 +88,8 @@ class EBook extends Book {
     }
 
     @Override
-    public void deliver(String email, String address) {
-        mailService.mail(this, email);
+    public void fulfillDelivery(String email, String address) {
+        mailService.sendToMail(this, email);
     }
 }
 
@@ -99,7 +99,7 @@ class ShowcaseBook extends Book {
     }
 
     @Override
-    public void deliver(String email, String address) {
+    public void fulfillDelivery(String email, String address) {
         throw new UnsupportedOperationException("Warning! : This book is not for sale");
     }
 }
@@ -112,16 +112,16 @@ class Bookstore {
         this.currentYear = currentYear;
     }
 
-    public void addBook(Book book) {
-        inventory.put(book.getISBN(), book);
+    public void registerBook(Book book) {
+        inventory.put(book.retrieveISBN(), book);
     }
 
-    public List<Book> removeOutdatedBooks(int maxAge) {
+    public List<Book> clearOldBooks(int maxAge) {
         List<Book> removed = new ArrayList<>();
         Iterator<Book> it = inventory.values().iterator();
         while (it.hasNext()) {
             Book book = it.next();
-            if (book.isOutdated(maxAge, currentYear)) {
+            if (book.checkIfOutdated(maxAge, currentYear)) {
                 removed.add(book);
                 it.remove();
             }
@@ -129,16 +129,16 @@ class Bookstore {
         return removed;
     }
 
-    public double buyBook(String isbn, int quantity, String email, String address) {
+    public double processPurchase(String isbn, int quantity, String email, String address) {
         Book book = inventory.get(isbn);
         if (book == null)
             throw new IllegalArgumentException("Warning! : Book not found in inventory");
         if (book instanceof ShowcaseBook)
             throw new IllegalArgumentException("Warning! : This book is not for sale");
 
-        book.reduceStock(quantity);
-        double total = quantity * book.getPrice();
-        book.deliver(email, address);
+        book.decreaseStock(quantity);
+        double total = quantity * book.getCost();
+        book.fulfillDelivery(email, address);
 
         String type = (book instanceof EBook) ? "ebook" : "paper book";
         System.out.printf("Quantum book store: Paid %.0f EGP for %s%n", total, type);
@@ -157,41 +157,41 @@ public class QuantumBookstoreDemo {
         Book ebook = new EBook("E001", "Ebook", 2023, 150.0, 2, "Mai", mailService);
         Book demo = new ShowcaseBook("D001", "Demo", 2020, 0.0, 1, "Unknown");
 
-        store.addBook(paper);
-        store.addBook(ebook);
-        store.addBook(demo);
+        store.registerBook(paper);
+        store.registerBook(ebook);
+        store.registerBook(demo);
 
         System.out.println("Quantum book store :  ");
         System.out.println("--------------------------Try buying PaperBook--------------------------");
         try {
-            store.buyBook("P001", 2, "menna@gmail.com", "madinaty");
+            store.processPurchase("P001", 2, "habiba@gmail.com", "madinaty");
         } catch (Exception e) {
             System.out.println("Quantum book store: " + e.getMessage());
         }
 
         System.out.println("--------------------------Try buying EBook--------------------------");
         try {
-            store.buyBook("E001", 1, "menna@gmail.com", "");
+            store.processPurchase("E001", 1, "habiba@gmail.com", "");
         } catch (Exception e) {
             System.out.println("Quantum book storee: " + e.getMessage());
         }
 
         System.out.println("--------------------------Try buying demo book (should fail)--------------------------");
         try {
-            store.buyBook("D001", 1, "m@gmail.com", "whatever");
+            store.processPurchase("D001", 1, "hh@gmail.com", "whatever");
         } catch (Exception e) {
             System.out.println(" Quantum book store: Expected error buying demo: " + e.getMessage());
         }
 
         System.out.println("--------------------------Try buying unknown ISBN Book --------------------------");
         try {
-            store.buyBook("UNKNOWN", 1, "m@gmail.com", "whatever");
+            store.processPurchase("UNKNOWN", 1, "hh@gmail.com", "whatever");
         } catch (Exception e) {
             System.out.println("Quantum book store: Error for unknown ISBN: " + e.getMessage());
         }
 
-        for (Book b : store.removeOutdatedBooks(3)) {
-            System.out.printf(" Quantum book store: Removed outdated book: %s (%d)%n", b.getTitle(), b.getYear());
+        for (Book b : store.clearOldBooks(3)) {
+            System.out.printf(" Quantum book store: Removed outdated book: %s (%d)%n", b.retrieveTitle(), b.getPublicationYear());
         }
     }
 }
