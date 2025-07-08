@@ -5,7 +5,8 @@
       "type": "java",
       "name": "Launch QuantumBookstoreDemo",
       "request": "launch",
-      "mainClass": "QuantumBookstoreDemo"
+      "mainClass": "QuantumBookstoreDemo",
+      "projectName": "Bookstore"
     }
   ]
 }
